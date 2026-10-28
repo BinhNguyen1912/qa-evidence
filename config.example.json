@@ -1,0 +1,8 @@
+{
+  "baseUrl": "http://localhost:3000",
+  "jira": {
+    "baseUrl": "https://your-domain.atlassian.net",
+    "email": "ban@congty.vn",
+    "apiToken": "dien-token-that-vao-file-bi-mat-trong-thu-muc-qa-evidence"
+  }
+}

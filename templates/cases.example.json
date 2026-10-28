@@ -1,0 +1,35 @@
+{
+  "ticket": "TRUST-000",
+  "baseUrl": "http://localhost:3000",
+  "cases": [
+    {
+      "id": "TC01",
+      "name": "Xem số dư ví payout của Nguyễn Thị Thu Hà",
+      "method": "GET",
+      "path": "/api/v1/mobile/wallet",
+      "expect": {
+        "status": 200,
+        "body": {
+          "currency": "VND"
+        }
+      }
+    },
+    {
+      "id": "TC02",
+      "name": "Từ chối rút số tiền âm của Trần Văn Bình",
+      "method": "POST",
+      "path": "/api/v1/mobile/wallet/withdrawals",
+      "body": {
+        "amount": -500000,
+        "bankCode": "TCB",
+        "accountNumber": "19034567890123"
+      },
+      "expect": {
+        "status": 400,
+        "body": {
+          "code": "INVALID_AMOUNT"
+        }
+      }
+    }
+  ]
+}
