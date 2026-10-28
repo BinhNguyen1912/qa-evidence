@@ -16,11 +16,12 @@ Cần Node 18 trở lên (`node -v` để kiểm tra).
 git clone <repo-url> ~/qa-evidence
 cd ~/qa-evidence
 npm install
-npm link
+npm run setup     # tai Chromium de chup anh
+npm link          # tao lenh qa-evidence dung o moi thu muc
 ```
 
-`npm install` tự tải Chromium (qua script `prepare`). `npm link` tạo lệnh
-`qa-evidence` dùng được ở mọi thư mục.
+Bắt buộc chạy `npm run setup`. npm đời mới chặn script cài đặt tự động, nên nếu
+bỏ qua bước này tool vẫn chạy nhưng **không chụp được ảnh** (chỉ ra file HTML).
 
 Nếu `npm link` báo lỗi quyền (npm của Homebrew), dùng cách này:
 
@@ -38,22 +39,34 @@ export PATH="$HOME/.npm-global/bin:$PATH"
 Kiểm tra:
 
 ```bash
-cd ~/trustwow-backend
+cd /duong/dan/den/project-cua-ban
 qa-evidence doctor
 ```
 
 Phải thấy `Bruno CLI: co` và `Chromium (playwright): co`. Nếu thiếu Chromium:
 
 ```bash
-cd ~/qa-evidence && npx playwright install chromium
+cd ~/qa-evidence && npm run setup
 ```
+
+### Cách 2: không dùng được `npm link`
+
+Nếu máy chặn quyền ghi global, khỏi link. Tạo một alias trỏ thẳng vào file:
+
+```bash
+echo 'alias qa-evidence="node $HOME/qa-evidence/bin/qa-evidence.js"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+Dùng y như cách 1. Khác biệt duy nhất: khi bạn `git pull` code mới, alias tự
+dùng bản mới luôn (không cần link lại).
 
 ## 2. Dùng hằng ngày
 
 ### Tạo file case
 
 ```bash
-cd ~/trustwow-backend
+cd /duong/dan/den/project-cua-ban
 qa-evidence init TRUST-1166
 ```
 
@@ -188,7 +201,7 @@ Không tìm thấy thì tool in ra đường dẫn cần tạo và nội dung m�
 `results.json` đã đúng định dạng `tc-excel` đang đọc:
 
 ```bash
-cd ~/trustwow-backend
+cd /duong/dan/den/project-cua-ban
 qa-evidence run TRUST-1166
 docs/tools/testcase-excel/tc-excel --results ~/Desktop/TRUST-1166/results.json
 ```

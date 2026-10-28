@@ -40,7 +40,7 @@ const USAGE = [
   '  --keep-temp       giu lai collection da sinh de debug',
   '',
   'Vi du:',
-  '  cd ~/trustwow-backend',
+  '  cd /duong/dan/den/project-cua-ban',
   '  qa-evidence init TRUST-1166',
   '  qa-evidence run TRUST-1166 --attach',
 ].join('\n');

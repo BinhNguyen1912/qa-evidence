@@ -10,8 +10,9 @@
     "node": ">=18"
   },
   "scripts": {
-    "prepare": "playwright install chromium || echo 'CANH BAO: chua cai Chromium, chay: npx playwright install chromium'",
-    "test": "node --test test/*.test.js"
+    "prepare": "echo 'Buoc tiep theo: npm run setup'",
+    "test": "node --test test/*.test.js",
+    "setup": "playwright install chromium"
   },
   "dependencies": {
     "@usebruno/cli": "^4.3.0",
