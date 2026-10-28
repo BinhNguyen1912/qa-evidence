@@ -129,3 +129,42 @@ test('token duoc ghi vao environment, khong phai baseUrl', () => {
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('ghi chu fail noi ro nhan duoc gi va can gi, khong doc nguoc nghia', () => {
+  // Bruno dat nhan assertion la ky vong ("HTTP 500"), nen ghep nguyen van se ra
+  // "HTTP 500: expected 200 to equal 500" - doc nhu the 500 moi la dung.
+  const verdict = bru.requestVerdict({
+    status: 'pass',
+    response: { status: 200 },
+    testResults: [{ description: 'HTTP 500', status: 'fail', error: 'expected 200 to equal 500' }],
+  });
+  assert.equal(verdict.verdict, 'Fail');
+  assert.match(verdict.reason, /Nhận được HTTP 200/);
+  assert.match(verdict.reason, /cần HTTP 500/);
+  assert.doesNotMatch(verdict.reason, /expected 200 to equal 500/);
+});
+
+test('ten case khong lap lai ma TC da co cot rieng', () => {
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const path = require('node:path');
+  const report = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'qa-ev-')), 'results.json');
+  fs.writeFileSync(
+    report,
+    JSON.stringify([
+      {
+        results: [
+          {
+            name: 'TC01 Kiểm tra sức khoẻ hệ thống',
+            status: 'pass',
+            response: { status: 200 },
+            testResults: [{ description: 'HTTP 200', status: 'pass' }],
+          },
+        ],
+      },
+    ]),
+  );
+  const out = bru.normalizeReport({ reportFile: report, cases: [{ id: 'TC01', name: 'Kiểm tra sức khoẻ hệ thống' }] });
+  assert.equal(out[0].id, 'TC01');
+  assert.equal(out[0].name, 'Kiểm tra sức khoẻ hệ thống');
+});
