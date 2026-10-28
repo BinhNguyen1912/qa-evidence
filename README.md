@@ -146,6 +146,53 @@ Jira đã thấy.
 
 Mặc định mọi case gửi Bearer token. Endpoint công khai thì thêm `"auth": false`.
 
+### Chạy collection Bruno có sẵn (không tự sinh request)
+
+Khi team đã có collection Bruno (file JSON export từ GUI), không cần chép lại
+request vào `cases.json`. Khai báo collection một lần, rồi mỗi case chỉ trỏ tới
+tên request trong GUI:
+
+```json
+{
+  "ticket": "TRUST-1008",
+  "baseUrl": "http://localhost:3000",
+  "collection": "docs/bruno/trustwow-chat-module.json",
+  "cases": [
+    { "id": "TC01", "name": "Danh sách hội thoại", "request": "01 List Conversations" },
+    { "id": "TC02", "name": "Cập nhật nhóm", "request": "05 Update Group" }
+  ]
+}
+```
+
+- `collection` tính từ gốc repo. Tool đổi bundle JSON thành cây `.bru` trong thư
+  mục tạm rồi chạy bằng `bru run`, nên repo không bị ghi gì.
+- Assertion lấy từ chính collection (block `tests`), không sinh lại — sửa kỳ
+  vọng thì sửa trong Bruno GUI rồi export lại.
+- `baseUrl` và token truyền qua `--env-var`, đè lên biến trong collection, nên
+  file export giữ nguyên không bị sửa.
+- Tên request sai (gõ nhầm, request bị đổi tên) ra **Blocked** kèm tên đã tìm,
+  không bao giờ ra Pass.
+- Collection tự đăng nhập và lưu token (`bru.setEnvVar('accessToken', ...)`) thì
+  không cần `--token`.
+- Tool **chỉ chạy request bạn khai báo**, cộng thêm request sản xuất ra biến mà
+  chúng cần. Ví dụ khai báo `05 Update Group` thì tự chạy thêm
+  `04 Create Group Conversation` (đặt `groupConversationId`) và
+  `01 Sign In and Store Access Token` (đặt `accessToken`) — chạy thiếu thì request
+  báo 400 vì lý do không liên quan code đang test. Dòng `collection` trong báo cáo
+  in rõ `4/44 request ... (+ ...)` để bạn thấy nó chạy thêm gì.
+- Tên request không khớp cái nào thì tool dừng và liệt kê tên đã khai báo, không
+  chạy rỗng rồi báo "tất cả pass".
+
+Tên request ghi được ba kiểu, kiểu nào cũng đúng:
+
+- `01 List Conversations` — tên đầy đủ như trong GUI, cách thường dùng.
+- `01 Conversations/01 List Conversations` — khi hai folder có request trùng tên.
+- `01-list-conversations` — gõ nhanh không dấu cách, hoặc viết tắt `01 List Con`.
+
+Nếu một tên khớp nhiều request ở các folder khác nhau, tool **dừng và liệt kê**
+các đường dẫn khớp được, không tự chọn — chọn sai thì ảnh chụp rơi vào dòng
+ticket khác và trông vẫn như bằng chứng thật.
+
 ### Token đăng nhập
 
 Hầu hết API cần JWT, nên tool bắt buộc có token và báo lỗi rõ nếu thiếu (chứ
