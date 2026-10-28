@@ -19,6 +19,7 @@ const { run } = require('../lib/run');
 const casesFrom = require('../lib/cases');
 const { browserAvailable } = require('../lib/shot');
 const desktop = require('../lib/desktop');
+const { collect } = require('../lib/collect');
 
 const USAGE = [
   'qa-evidence - chay test Bruno va sinh bang chung (chi tren may local)',
@@ -28,6 +29,8 @@ const USAGE = [
   '  qa-evidence init TRUST-123         tao file case mau trong .scratch/TRUST-123/',
   '  qa-evidence setup-jira             nhap thong tin Jira (khong luu vao repo)',
   '  qa-evidence run TRUST-123          chay va sinh bang chung',
+  '  qa-evidence collect               gom file local (plans/.scratch) ve repo chinh',
+  '  qa-evidence collect --dry-run     xem truoc, khong copy',
   '',
   'Chi can ma ticket, khong can duong dan. Tool tu tim file tai:',
   '  .scratch/TRUST-123/cases.json',
@@ -55,6 +58,7 @@ function parseArgs(argv) {
     else if (arg === '--write-secrets') options.writeSecrets = true;
     else if (arg === '--no-open') options.noOpen = true;
     else if (arg === '--force') options.force = true;
+    else if (arg === '--dry-run') options.dryRun = true;
     else if (arg.startsWith('--')) {
       const key = arg.slice(2).replace(/-([a-z])/g, (_, c) => c.toUpperCase());
       options[key] = argv[i + 1];
@@ -155,6 +159,64 @@ function cmdInitCases(ticket, options) {
   return 0;
 }
 
+function cmdCollect(options) {
+  let result;
+  try {
+    result = collect(process.cwd(), { dryRun: Boolean(options.dryRun) });
+  } catch (error) {
+    console.error('✗ ' + error.message);
+    return 2;
+  }
+
+  if (!result.isWorktree) {
+    console.log('• Day la repo chinh (' + result.main + ').');
+    console.log('  Khong can gom: file local da nam dung cho.');
+    console.log('  Chay lenh nay ben trong worktree truoc khi xoa no.');
+    return 0;
+  }
+
+  console.log('Worktree : ' + result.source);
+  console.log('Repo chinh: ' + result.main);
+  console.log(options.dryRun ? '\n(chi xem truoc, khong copy)\n' : '\n');
+
+  if (!result.results.length) {
+    console.log('Khong co file local nao de gom (khong co .scratch, docs/plans, docs/testcases).');
+    return 0;
+  }
+
+  let copiedCount = 0;
+  let clashCount = 0;
+  for (const item of result.results) {
+    const verb = options.dryRun ? 'se gom' : 'da gom';
+    console.log(item.area + ':');
+    for (const rel of item.copied) {
+      console.log('  ' + verb + '  ' + rel);
+      copiedCount += 1;
+    }
+    for (const rel of item.clashes) {
+      console.log('  KHAC NOI DUNG (bo qua)  ' + rel);
+      clashCount += 1;
+    }
+  }
+
+  console.log('');
+  console.log(
+    (options.dryRun ? 'Se copy ' : 'Da copy ') + copiedCount + ' file ve repo chinh.' +
+      (clashCount ? ' ' + clashCount + ' file bi bo qua vi da ton tai khac noi dung.' : ''),
+  );
+
+  if (clashCount) {
+    console.log('\nFile bo qua la file repo chinh dang co ban khac. So sanh roi tu quyet dinh:');
+    console.log('  diff <file-trong-worktree> <file-trong-repo-chinh>');
+  }
+
+  if (!options.dryRun) {
+    console.log('\nXong. Gio co the xoa worktree:');
+    console.log('  git worktree remove ' + result.source);
+  }
+  return 0;
+}
+
 function cmdSetupJira() {
   const readline = require('node:readline');
 
@@ -232,6 +294,7 @@ async function main(argv) {
   if (command === 'doctor') return cmdDoctor();
   if (command === 'setup-jira') return cmdSetupJira();
   if (command === 'init') return cmdInitCases(positional[0], options);
+  if (command === 'collect') return cmdCollect(options);
 
   if (command === 'run') {
     const target = positional[0];

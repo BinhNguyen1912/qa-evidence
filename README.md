@@ -196,6 +196,32 @@ Tên thư mục chuẩn `.scratch/TRUST-XXX/` luôn được ưu tiên hơn tên
 
 Không tìm thấy thì tool in ra đường dẫn cần tạo và nội dung mẫu, không đoán bừa.
 
+## 5b. Dọn worktree mà không mất file
+
+Worktree có thư mục local riêng. `.scratch/` và `docs/` bị gitignore, nên
+`git worktree remove` **xoá luôn** case và plan trong đó — git chưa từng giữ
+chúng nên không khôi phục được.
+
+Trước khi xoá, đứng trong worktree chạy:
+
+```bash
+qa-evidence collect --dry-run   # xem trước
+qa-evidence collect             # copy thật
+```
+
+Tool gom ba chỗ về repo chính: `.scratch/`, `docs/plans/`, `docs/testcases/`.
+
+Nguyên tắc an toàn:
+
+| Tình huống | Tool làm gì |
+| --- | --- |
+| File chưa có ở repo chính | copy sang |
+| File đã có, **nội dung giống** | bỏ qua, không báo gì |
+| File đã có, **nội dung khác** | **không ghi đè**, liệt kê để bạn tự `diff` |
+| Đang đứng ở repo chính | báo "không cần gom" rồi thoát |
+
+Chạy ở repo chính không làm gì cả, nên gõ nhầm cũng không sao.
+
 ## 6. Nối vào quy trình Excel sẵn có
 
 `results.json` đã đúng định dạng `tc-excel` đang đọc:
