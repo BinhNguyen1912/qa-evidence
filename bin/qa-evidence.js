@@ -14,7 +14,7 @@ const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 
 const { resolveProject, HOME_DIR, readState } = require('../lib/project');
-const { CONFIG_FILE, SECRETS_FILE, jiraConfigured } = require('../lib/config');
+const { CONFIG_FILE, SECRETS_FILE, jiraConfigured, readSecrets } = require('../lib/config');
 const { run } = require('../lib/run');
 const casesFrom = require('../lib/cases');
 const { browserAvailable } = require('../lib/shot');
@@ -22,7 +22,6 @@ const desktop = require('../lib/desktop');
 const { collect } = require('../lib/collect');
 const excel = require('../lib/excel');
 const { attachFiles } = require('../lib/jira');
-const { readSecrets } = require('../lib/config');
 
 const USAGE = [
   'qa-evidence - chay test Bruno va sinh bang chung (chi tren may local)',

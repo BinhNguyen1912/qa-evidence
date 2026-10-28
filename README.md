@@ -98,6 +98,9 @@ Kết quả tự mở trong Finder tại `~/Desktop/TRUST-1008/`:
 Chạy lại `qa-evidence excel TRUST-1008` lúc này thì bảng có thêm cột
 Pass/Fail.
 
+Mỗi lần chạy xoá file của lần trước trong `~/Desktop/<ticket>/` nhưng giữ
+thư mục `runs/` làm lịch sử. Nhờ vậy `jira` không đẩy kèm ảnh fail cũ của lần chạy trước.
+
 ### Bước 3 — đẩy lên Jira
 
 ```bash
