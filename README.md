@@ -63,42 +63,52 @@ dùng bản mới luôn (không cần link lại).
 
 ## 2. Dùng hằng ngày
 
-### Tạo file case
+Ba lệnh, đúng thứ tự làm việc: xem case, chạy test, đẩy lên Jira.
+
+### Bước 1 — sinh Excel để review
 
 ```bash
-cd /duong/dan/den/project-cua-ban
-qa-evidence init TRUST-1166
+qa-evidence excel TRUST-1008
 ```
 
-Tạo ra `.scratch/TRUST-1166/cases.json`. Mở file, sửa nội dung case.
+Lần đầu chưa có file case: tool tạo `.scratch/TRUST-1008/cases.json` từ mẫu
+và nói rõ. Sửa nội dung case trong đó rồi chạy lại lệnh này để bảng chính xác.
 
-### Chạy
+File ra ở `docs/test-excel/testcase-<branch>-<yyyymmdd>.xlsx`. Mở xem, sửa
+case nếu cần.
+
+### Bước 2 — chạy test bằng Bruno, chụp màn hình
 
 ```bash
-qa-evidence run TRUST-1166
+qa-evidence run TRUST-1008
 ```
 
-Không cần đường dẫn. Sáng hôm sau mở terminal, chỉ cần 2 lệnh này.
-
-Kết quả tự mở trong Finder tại `~/Desktop/TRUST-1166/`:
+Kết quả tự mở trong Finder tại `~/Desktop/TRUST-1008/`:
 
 ```
-~/Desktop/TRUST-1166/
+~/Desktop/TRUST-1008/
   bang-chung-20261028-101152.png     ảnh tổng hợp, mở là thấy ngay
   bang-chung-20261028-101152.html
   case-tc02-....png                  ảnh riêng từng case không đạt
-  results.json                       dữ liệu thô, tc-excel đọc được
+  results.json                       dữ liệu thô
   bao-cao.md                         bản tóm tắt để dán vào comment
   runs/                              lịch sử lần chạy trước
 ```
 
-### Đẩy lên Jira
+Chạy lại `qa-evidence excel TRUST-1008` lúc này thì bảng có thêm cột
+Pass/Fail.
+
+### Bước 3 — đẩy lên Jira
 
 ```bash
-qa-evidence run TRUST-1166 --attach
+qa-evidence jira TRUST-1008
 ```
 
-Gắn ảnh, `results.json` và `bao-cao.md` vào đúng ticket.
+Gắn ảnh, `results.json` và `bao-cao.md` vào đúng ticket. Chỉ gắn file work
+product, bỏ qua `.DS_Store` và file lạ.
+
+Tách khỏi bước 2 để kiểm tra ảnh trước khi đẩy — đẩy rồi thì người khác trên
+Jira đã thấy.
 
 ## 3. Viết nội dung case
 
@@ -222,18 +232,20 @@ Nguyên tắc an toàn:
 
 Chạy ở repo chính không làm gì cả, nên gõ nhầm cũng không sao.
 
-## 6. Nối vào quy trình Excel sẵn có
+## 6. Excel: bảng test case
 
-`results.json` đã đúng định dạng `tc-excel` đang đọc:
+`qa-evidence excel` gọi `tc-excel` của repo backend, nên bảng luôn dùng đúng
+tool và đúng cấu hình `docs/tools/testcase-excel/config.json` (profile 11 cột).
+Không có bản sao thứ hai của logic Excel trong tool này.
 
-```bash
-cd /duong/dan/den/project-cua-ban
-qa-evidence run TRUST-1166
-docs/tools/testcase-excel/tc-excel --results ~/Desktop/TRUST-1166/results.json
-```
+Ba điểm cần biết:
 
-Chạy `qa-evidence` trước, rồi `tc-excel`, để workbook có kết quả Pass/Fail thật
-thay vì "Not run".
+- `docs/` bị gitignore, nên worktree **không có** `docs/tools/`. Tool tìm
+  `tc-excel` ở repo chính và chạy ở đó, nhưng đọc case/kết quả của worktree
+  qua đường dẫn tuyệt đối. Bạn không phải copy tool sang worktree.
+- Tên file lấy theo nhánh của worktree đang đứng, không theo nhánh repo chính.
+- `run` ghi `results.json` vào cả `~/Desktop/<ticket>/` và
+  `.scratch/<ticket>/` để `tc-excel` tự tìm thấy khi chạy lại.
 
 ## 7. Mã thoát
 
@@ -242,6 +254,7 @@ thay vì "Not run".
 | `0` | Tất cả case Pass |
 | `1` | Có case Fail hoặc Blocked, hoặc dữ liệu test chưa đạt |
 | `2` | Sai cách dùng lệnh, hoặc chưa có file case |
+| `3` | Không tìm thấy tool Excel (thiếu `docs/tools/testcase-excel/tc-excel`) |
 
 `Blocked` nghĩa là Bruno không trả về kết quả cho case đó. Nó khác hẳn Pass, để
 case bị bỏ qua không bao giờ trông như đã kiểm thử thành công.
@@ -250,7 +263,7 @@ case bị bỏ qua không bao giờ trông như đã kiểm thử thành công.
 
 - Chỉ dùng local. Không bước nào ghi vào repo project.
 - Không tự push, không tự tạo PR, không sửa git config.
-- Chỉ đẩy file lên Jira khi bạn thêm `--attach`.
+- Chỉ đẩy file lên Jira khi bạn gõ `qa-evidence jira`.
 - Collection sinh trong thư mục tạm, xoá sau mỗi lần chạy (`--keep-temp` để giữ).
 
 ## 9. Phát triển tool

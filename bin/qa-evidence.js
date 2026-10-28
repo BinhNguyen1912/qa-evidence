@@ -20,15 +20,20 @@ const casesFrom = require('../lib/cases');
 const { browserAvailable } = require('../lib/shot');
 const desktop = require('../lib/desktop');
 const { collect } = require('../lib/collect');
+const excel = require('../lib/excel');
+const { attachFiles } = require('../lib/jira');
+const { readSecrets } = require('../lib/config');
 
 const USAGE = [
   'qa-evidence - chay test Bruno va sinh bang chung (chi tren may local)',
   '',
   'Cach dung:',
   '  qa-evidence doctor                 kiem tra moi truong',
+  '  qa-evidence excel TRUST-123        sinh file Excel test case de review',
+  '  qa-evidence run TRUST-123          chay Bruno, chup man hinh, gom bang chung',
+  '  qa-evidence jira TRUST-123         day bang chung len Jira',
   '  qa-evidence init TRUST-123         tao file case mau trong .scratch/TRUST-123/',
   '  qa-evidence setup-jira             nhap thong tin Jira (khong luu vao repo)',
-  '  qa-evidence run TRUST-123          chay va sinh bang chung',
   '  qa-evidence collect               gom file local (plans/.scratch) ve repo chinh',
   '  qa-evidence collect --dry-run     xem truoc, khong copy',
   '',
@@ -217,6 +222,140 @@ function cmdCollect(options) {
   return 0;
 }
 
+function cmdExcel(ticket, options) {
+  if (!ticket) {
+    console.error('Thieu ma ticket.\n\n  qa-evidence excel TRUST-1166');
+    return 2;
+  }
+  if (!casesFrom.isTicketCode(ticket)) {
+    console.error('✗ "' + ticket + '" khong phai ma ticket (can dang TRUST-1166).');
+    return 2;
+  }
+
+  let project;
+  try {
+    project = resolveProject(process.cwd());
+  } catch (error) {
+    console.error('✗ ' + error.message);
+    return 2;
+  }
+
+  const wanted = casesFrom.normalizeTicket(ticket);
+
+  // First run has no cases file yet: lay down the template so the workbook has
+  // something to render, then say plainly that it must be edited and re-run.
+  const existing = casesFrom.findCasesFile(project.root, wanted);
+  if (existing.ambiguous) {
+    // Two rival folders name the same ticket. Seeding would pick one at random
+    // and the run would read the other, so stop and let the operator choose.
+    console.error('✗ Co nhieu thu muc cung khop ' + wanted + ':');
+    for (const file of existing.ambiguous) console.error('    ' + file);
+    console.error('  Xoa bot mot thu muc roi chay lai.');
+    return 2;
+  }
+
+  let seeded = false;
+  if (!existing.file) {
+    const dir = path.join(project.root, '.scratch', wanted);
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'cases.json'), JSON.stringify(CASES_TEMPLATE(wanted), null, 2) + '\n');
+    seeded = true;
+  }
+
+  // The workbook tool runs from the main checkout (docs/ is git-ignored, so a
+  // worktree has no tool). Point it at this checkout's files explicitly, or it
+  // would read the main checkout's .scratch and miss these cases.
+  const designFile = options.design || path.join(project.root, '.scratch', wanted, 'cases.json');
+  const resultsFile = options.results || path.join(project.root, '.scratch', wanted, 'results.json');
+
+  let result;
+  try {
+    result = excel.build(project.root, wanted, {
+      results: fs.existsSync(resultsFile) ? resultsFile : undefined,
+      design: designFile,
+      out: options.out,
+      // The tool reads the branch of its own cwd (the main checkout), which is
+      // not the branch being tested. Name the file after this checkout instead.
+      name: options.name || project.branch,
+      dryRun: Boolean(options.dryRun),
+    });
+  } catch (error) {
+    console.error('✗ ' + error.message);
+    return error.code === 'NO_EXCEL_TOOL' ? 3 : 1;
+  }
+
+  if (seeded) {
+    console.log('• Chua co file case, da tao mau: .scratch/' + wanted + '/cases.json');
+    console.log('  Sua noi dung that trong file do roi chay lai de bang chinh xac.');
+    console.log('');
+  }
+
+  if (!options.quiet && result.output.trim()) console.log(result.output.trim());
+  if (result.file) {
+    console.log('');
+    console.log('✓ Da sinh: ' + result.file);
+    console.log('  Mo kiem tra, sua case neu can, roi chay: qa-evidence run ' + wanted);
+  }
+  return 0;
+}
+
+async function cmdJira(ticket) {
+  if (!ticket) {
+    console.error('Thieu ma ticket.\n\n  qa-evidence jira TRUST-1166');
+    return 2;
+  }
+  if (!casesFrom.isTicketCode(ticket)) {
+    console.error('✗ "' + ticket + '" khong phai ma ticket (can dang TRUST-1166).');
+    return 2;
+  }
+
+  let project;
+  try {
+    project = resolveProject(process.cwd());
+  } catch (error) {
+    console.error('✗ ' + error.message);
+    return 2;
+  }
+
+  const wanted = casesFrom.normalizeTicket(ticket);
+  const dir = desktop.ticketFolder(wanted);
+  if (!fs.existsSync(dir)) {
+    console.error('✗ Chua co bang chung cho ' + wanted + ': ' + dir);
+    console.error('  Chay truoc: qa-evidence run ' + wanted);
+    return 2;
+  }
+
+  // Attach only work product, never the whole folder: a stray file should not
+  // end up on the ticket.
+  const names = fs.readdirSync(dir).filter((name) => {
+    if (name === '.DS_Store') return false;
+    return name.endsWith('.png') || name.endsWith('.md') || name.endsWith('.json') || name.endsWith('.html');
+  });
+  if (!names.length) {
+    console.error('✗ Thu muc ' + dir + ' khong co file de day len.');
+    return 2;
+  }
+
+  const files = names.map((name) => path.join(dir, name));
+  console.log('Dinh day len Jira: ' + wanted);
+  for (const file of files) console.log('  ' + path.basename(file));
+
+  let result;
+  try {
+    result = await attachFiles({ ticket: wanted, files: files, jira: readSecrets() });
+  } catch (error) {
+    console.error('✗ ' + error.message);
+    return 1;
+  }
+
+  console.log('');
+  console.log('✓ Da day ' + result.uploaded.length + ' file len ' + result.issueKey + '.');
+  if (result.skipped.length) {
+    console.log('  Bo qua ' + result.skipped.length + ' file khong ton tai.');
+  }
+  return 0;
+}
+
 function cmdSetupJira() {
   const readline = require('node:readline');
 
@@ -293,6 +432,8 @@ async function main(argv) {
   }
   if (command === 'doctor') return cmdDoctor();
   if (command === 'setup-jira') return cmdSetupJira();
+  if (command === 'excel') return cmdExcel(positional[0], options);
+  if (command === 'jira') return cmdJira(positional[0], options);
   if (command === 'init') return cmdInitCases(positional[0], options);
   if (command === 'collect') return cmdCollect(options);
 
